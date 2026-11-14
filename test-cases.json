@@ -1,0 +1,10 @@
+[
+  {"input": "Rajan - 800 - hotel", "expected": "Rajan - 800 - hotel"},
+  {"input": "Neha paid 400 for dinner", "expected": "Neha - 400 - dinner"},
+  {"input": "Amit 200", "expected": "Amit - 200 - missing"},
+  {"input": "priya - 600 - cab", "expected": "priya - 600 - cab"},
+  {"input": "Rohit - 300 - snacks", "expected": "Rohit - 300 - snacks"},
+  {"input": "Neha - dinner", "expected": "Neha - missing - dinner"},
+  {"input": "Amit - abc - taxi", "expected": "Amit - invalid - taxi"},
+  {"input": "500 - fuel", "expected": "missing - 500 - fuel"}
+]

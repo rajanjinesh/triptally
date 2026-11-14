@@ -1,0 +1,7 @@
+Total: 2000
+Friends: 4
+Share each: 500
+Who pays whom:
+Neha -> Rajan 500
+Amit -> Rajan 200
+Amit -> Priya 100

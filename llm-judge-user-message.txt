@@ -1,0 +1,15 @@
+You are checking whether an AI correctly rewrote one line from a trip expense file.
+
+The AI must return the line in the format "Name - amount - item".
+- "missing" means that part is not in the original line.
+- "invalid" means the amount is not a number.
+
+Original line: {{input}}
+Expected: {{expected}}
+AI output: {{output}}
+
+Compare the AI output with the expected line. Ignore extra spaces and letter case.
+Answer 1 if the name, the amount and the item all match the expected line, including any "missing" or "invalid" keywords.
+Answer 0 if any part is different, missing, or added.
+
+Reply with only 1 or 0.

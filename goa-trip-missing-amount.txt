@@ -1,0 +1,6 @@
+Rajan - 800 - hotel
+Rajan - 200 - food
+Rajan - 200 - cab
+Priya - 350 - dinner
+Priya - drinks
+Amit - 200 - snacks

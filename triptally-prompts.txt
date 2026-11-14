@@ -1,0 +1,233 @@
+Prompt 1 – Project Setup and Infrastructure Check
+
+Purpose:
+Set up the TripTally project and confirm every connection works before building any features. Read context.md and design.md for background. Do not build any screens or features in this step.
+
+1. Next.js: create a Next.js app (App Router, TypeScript, Tailwind CSS) with package name "triptally". Keep the existing files (context.md, design.md, samples/, .env.local).
+2. Env: use the keys already in .env.local with their exact names. Do not overwrite it. Add .env.local to .gitignore.
+3. Supabase: confirm the tables trips, friends and settlements can be read. Do not change them.
+4. Claude: make one short test call with ANTHROPIC_API_KEY.
+5. Gmail: send a test email to GMAIL_USER (subject "TripTally infra test") using Nodemailer. Await the send.
+6. Braintrust: confirm BRAINTRUST_API_KEY connects. Create nothing.
+7. PostHog: confirm the connection using NEXT_PUBLIC_POSTHOG_KEY and NEXT_PUBLIC_POSTHOG_HOST. Do not send any events.
+8. Figma: confirm the 3 frames in design.md can be read via the Figma MCP.
+9. Git: initialise Git on the main branch, set the remote to https://github.com/rajanjinesh/triptally.git, confirm access to the repo, and commit locally. Do not push. Confirm .env.local is not in the commit.
+
+When done, reply only with this summary table, one row per step, written as a short result:
+
+| Step | Result | Status |
+|---|---|---|
+| 1 | Next.js project created | Done |
+| 2 | Env keys loaded, .env.local ignored by Git | Done |
+| 3 | Supabase connection done, 3 tables readable | Done |
+| 4 | Claude API connection done | Done |
+| 5 | Gmail test email sent | Done |
+| 6 | Braintrust connection done | Done |
+| 7 | PostHog connection done | Done |
+| 8 | Figma frames readable (3/3) | Done |
+| 9 | Git ready, remote set, committed locally (not pushed) | Done |
+
+If a step fails, set Status to "Not successful" and give the reason in one short line in the Result column. Nothing else.
+
+
+----------------------------------------------------------
+
+Prompt 2 – Design the UI Pages
+
+Purpose:
+Build the 3 TripTally screens exactly as designed, with static sample data. UI only: no Supabase, Claude, Gmail, Braintrust or PostHog in this step.
+Build only what is described in design.md. Do not add anything new: no extra pages, fields, buttons, text, styles or features.
+
+Use design.md as the source for every screen (layout, styles, copy and tooltips), and the Figma URLs in it as the visual reference.
+
+1. / – Trip setup: trip name, trip type (Only Friends / With Friends & Families), friend rows (name + email, 3 rows), "+ Add friend" adds a new row, and a Continue button.
+2. /upload – Upload spend details: .txt upload area, the selected-file row after choosing a file (with remove ×), the test-data note, an "Evaluate" button (secondary) and a "Next" button (primary).
+3. /dashboard – Dashboard: "Goa Trip · Friends" header, the Summary table, the Who pays whom table with the total row, and an Approve & notify button. Use the sample data from design.md.
+4. Navigation: Continue goes to /upload, and Next goes to /dashboard. Evaluate and Approve & notify do nothing yet.
+5. Tooltips: show on hover only (not open by default).
+6. Check: the app runs locally and builds without errors, and all 3 pages match design.md.
+7. Git: commit locally. Do not push.
+
+When done, reply only with this summary table, one row per step, written as a short result:
+
+| Step | Result | Status |
+|---|---|---|
+| 1 | Trip setup page created | Done |
+| 2 | Upload page created | Done |
+| 3 | Dashboard page created | Done |
+| 4 | Navigation between pages working | Done |
+| 5 | Tooltips show on hover | Done |
+| 6 | App runs and builds, pages match design | Done |
+| 7 | Committed locally (not pushed) | Done |
+
+If a step fails, set Status to "Not successful" and give the reason in one short line in the Result column. Nothing else.
+
+
+------------------------------------------------------------------------------------
+
+Prompt 3 – Implement the Full Flow and Basic Testing
+
+Purpose:
+Make TripTally work end to end, as described in context.md, using the UI built in Prompt 2. Core flow only: no Braintrust and no PostHog in this step.
+Build only what is described in context.md and design.md. Do not add anything new.
+
+Roles:
+- Claude (AI): reads the uploaded .txt and turns each line into "Name - amount - item" (with "missing" / "invalid" where needed). Nothing else.
+- Code: checks the lines, calculates the split (total, share each, who pays whom), saves, and sends emails.
+
+Rules:
+- The Supabase tables (trips, friends, settlements) already exist. Do not create or change them.
+- Call Claude and Gmail only from the server (API routes), never from the browser.
+- Carry the trip id from / through /upload to /dashboard.
+- Keep the calculated split in the browser session (e.g. sessionStorage) until Approve & notify saves it, so /dashboard can show it and it survives a page refresh.
+
+1. / – Continue: all fields are required and emails must be valid. Everyone on the trip, including the organiser, is entered as a person on this screen ("+ Add friend" for more than 3). Save the trip (trips) and each person's name and email (friends) to Supabase, then go to /upload.
+2. /upload – On file upload:
+   - Read the uploaded file and pass its text to one analyser function, analyseSpends(text), in lib/analyseSpends.ts. The text is the list of spends in the uploaded file (all its lines). analyseSpends sends this list to Claude (ANTHROPIC_API_KEY) at once and gets back every line rewritten as "Name - amount - item" (3 lines in → 3 lines out). The same function is reused later by the Braintrust evaluation (Prompt 5).
+   - How Claude rewrites a line: name exactly as written ("missing" if there is no name); amount as a whole number ("missing" if there is no amount, "invalid" if it is not a number); item in lowercase ("missing" if there is no item). Words like fuel, cab, dinner and hotel are items, not names. Lines may be in different formats, e.g. "Name - 200 - food", "Name paid 200 for food", "Name 200". Ignore empty lines.
+   - Then the code checks every rewritten line. Fetch this trip's friends from Supabase (saved when Continue was clicked on /) using the trip id. A line is wrong if its name is "missing" or is not one of the trip's friends (ignore letter case), or if its amount is "missing" or "invalid".
+   - If any line is wrong, list every wrong line with its reason and keep Next disabled.
+   - Otherwise, match each name to the friend's name as saved, and calculate the split in code (not by Claude): total = sum of amounts; share each = total ÷ number of friends (all friends on the trip, including those who paid nothing); balance = amount paid − share; who pays whom = repeatedly match the person who owes the most with the person who is owed the most, until all balances are zero. Round to the nearest rupee.
+   - Do not save it yet. Show a clear error if the file can't be read.
+3. /upload – Next goes to /dashboard. Next is disabled until a file is uploaded and analyzed successfully; while the file is being analyzed, show "Analyzing…" in the selected-file row. Evaluate stays visible but does nothing (Braintrust is added later).
+4. /dashboard: show the trip name and type in the header, and the Summary and Who pays whom tables from the split, replacing the sample data.
+5. /dashboard – Approve & notify (always shown for now):
+   - save the split to Supabase (settlements)
+   - send one email through Gmail (Nodemailer, GMAIL_USER, GMAIL_APP_PASSWORD) to each person, with the subject "<Trip name> – your TripTally split" and the Who pays whom table as an HTML table, using inline styles only
+   - await the email send before responding
+   - show "Notification sent" on the same screen, or a clear error if it failed
+   - disable the button after a successful click
+6. Basic testing: run the full flow locally with the friends listed in samples/goa-trip-friends.txt and the file samples/goa-trip.txt. Use GMAIL_USER as every friend's email so no real friends are emailed.
+   Expected: the results in samples/goa-trip-expected.txt, the rows saved in Supabase, and one email per friend in GMAIL_USER.
+7. Check: the app builds without errors.
+8. Git: commit locally. Do not push.
+
+When done, reply only with this summary table, one row per step, written as a short result:
+
+| Step | Result | Status |
+|---|---|---|
+| 1 | Trip and friends saved to Supabase | Done |
+| 2 | File read by Claude, split calculated in code | Done |
+| 3 | Next enabled after analysis, opens dashboard; Evaluate inactive | Done |
+| 4 | Dashboard shows trip and split | Done |
+| 5 | Split saved, emails sent, confirmation shown | Done |
+| 6 | Test passed, results match expected values | Done |
+| 7 | App builds without errors | Done |
+| 8 | Committed locally (not pushed) | Done |
+
+If a step fails, set Status to "Not successful" and give the reason in one short line in the Result column. Nothing else.
+
+------------------------------------------------------
+
+Prompt 4 – Deploy
+
+Purpose:
+Deploy the finished TripTally app, after the Prompt 3 sanity test has passed. Do not add or change any features in this step.
+
+1. Build check: confirm the app builds without errors and .env.local is not tracked by Git.
+2. GitHub: push to the main branch of https://github.com/rajanjinesh/triptally.git. Confirm .env.local is not pushed.
+3. Vercel: the repo is already connected, so the push triggers a deploy automatically. Wait about 2 minutes, then confirm https://triptally-pi.vercel.app loads. Do not change any Vercel settings.
+
+When done, reply only with this summary:
+
+| Step | Result | Status |
+|---|---|---|
+| 1 | App builds, .env.local not tracked | Done |
+| 2 | Code pushed to GitHub (main), .env.local not pushed | Done |
+| 3 | Vercel deployed, site loads | Done |
+
+If a step fails, set Status to "Not successful" and give the reason in one short line in the Result column. Nothing else.
+
+
+---------------------------------------------
+
+Prompt 5 – Braintrust Evaluation
+
+Purpose:
+Test the analyser with the Braintrust dataset and record the results as an experiment. Do not change anything else in the app.
+
+About the analyser:
+analyseSpends (lib/analyseSpends.ts, built in Prompt 3) is the AI step of the app. It takes text: the list of spends. In this evaluation, that list always contains only one spend line: it sends that one line to Claude and gets it back rewritten as "Name - amount - item" (with "missing" / "invalid" where needed). It is the only part of the app that uses AI, so it is the part we evaluate. Use it as is; do not change it.
+
+Braintrust names:
+- Project: <PROJECT_NAME>
+- Dataset: <DATASET_NAME>
+- Scorer: <SCORER_NAME>
+
+1. Create lib/eval.ts using the Braintrust TypeScript SDK (BRAINTRUST_API_KEY). For each row in the dataset <DATASET_NAME> (project <PROJECT_NAME>):
+   - Call analyseSpends once for every row: pass the row's input as the text (a list of spends with only one line). analyseSpends returns a list with one line; take that one line and store it as the actual output, as plain text (not a list), e.g. "Neha - 400 - dinner".
+   - Only analyseSpends is evaluated. The code checks that run after it in the app (friend names, amounts) are not part of this evaluation.
+   - Create one new experiment for each evaluation run. input and expected come from the dataset automatically; only the output is set by the code. Each row looks like:
+     {"input": "<row input>", "expected": "<row expected>", "output": "<returned line>"}
+     All three are plain text: input is the original line as written; expected and output are both in the "Name - amount - item" format, so the scorer compares like with like.
+   - Run the scorer <SCORER_NAME> on every row: 1 = pass, 0 = fail. Show the overall score for the run.
+2. Evaluate button: on /upload, clicking Evaluate calls lib/eval.ts (through a server route, so the API keys stay on the server). Nothing new is shown on the screen.
+   Run all rows in parallel, and set the route's maximum duration high enough for the evaluation to finish. Why: run one after another, many Claude calls plus scoring can exceed Vercel's time limit and the button would time out; in parallel it takes about as long as one call.
+3. Run the evaluation once, the same way the Evaluate button does.
+4. Push to the main branch of https://github.com/rajanjinesh/triptally.git so the live app gets the Evaluate button.
+
+When done, reply only with this summary:
+
+| Item | Result |
+|---|---|
+| lib/eval.ts created | Yes / No |
+| Evaluate button connected | Yes / No |
+| Test cases run | number of rows in the dataset |
+| Passed | number of rows scored 1 |
+| Failed | number of rows scored 0 |
+
+If anything fails, give the reason in one short line below the table. Nothing else.
+
+
+---------------------------------------------
+
+Braintrust Setup – Dataset to Add (before running Prompt 5)
+
+Project: <PROJECT_NAME>      (e.g. TripTally)
+Dataset: <DATASET_NAME>      (e.g. spend-test-cases)
+
+Dataset rows (JSON):
+
+[
+  { "input": "Rajan - 800 - hotel", "expected": "Rajan - 800 - hotel" },
+  { "input": "Neha paid 400 for dinner", "expected": "Neha - 400 - dinner" },
+  { "input": "Amit 200", "expected": "Amit - 200 - missing" },
+  { "input": "priya - 600 - cab", "expected": "priya - 600 - cab" },
+  { "input": "Rohit - 300 - snacks", "expected": "Rohit - 300 - snacks" },
+  { "input": "Neha - dinner", "expected": "Neha - missing - dinner" },
+  { "input": "Amit - abc - taxi", "expected": "Amit - invalid - taxi" },
+  { "input": "500 - fuel", "expected": "missing - 500 - fuel" }
+]
+
+Check after creating: the dataset shows 8 rows, each with an Input and an Expected value.
+
+---------------------------------------------
+
+Braintrust Setup – LLM Judge Scorer to Add (before running Prompt 5)
+
+Scorer name: <SCORER_NAME>   (e.g. spend-line-judge)
+Type: LLM-as-a-judge
+Model: a Claude model (add your Anthropic key in Braintrust under AI providers first)
+Choice scores: "1" = 1 (pass), "0" = 0 (fail)
+
+User message (prompt for the judge):
+
+You are checking whether an AI correctly rewrote one line from a trip expense file.
+
+The AI must return the line in the format "Name - amount - item".
+- "missing" means that part is not in the original line.
+- "invalid" means the amount is not a number.
+
+Original line: {{input}}
+Expected: {{expected}}
+AI output: {{output}}
+
+Compare the AI output with the expected line. Ignore extra spaces and letter case.
+Answer 1 if the name, the amount and the item all match the expected line, including any "missing" or "invalid" keywords.
+Answer 0 if any part is different, missing, or added.
+
+Reply with only 1 or 0.
+
+Check after creating: run the scorer on one dataset row in Braintrust and confirm it returns 1 or 0.
+
+---------------------------------------------

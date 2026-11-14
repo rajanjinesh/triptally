@@ -1,0 +1,171 @@
+TripTally – PostHog Prompts
+===========================
+
+Order
+-----
+1. Check that the PostHog key and host names in .env.local and Vercel start with NEXT_PUBLIC_
+2. Run Prompt 6 (Events) in Claude Code
+3. Go through the flow on the live site and check the 4 events in PostHog Activity
+4. Create the funnel in PostHog
+5. Create the feature flag approve-notify in PostHog
+6. Run Prompt 7 (Feature Flag) in Claude Code, then test turning the flag on and off
+7. Create and launch the experiment approve-notify-color in PostHog
+8. Run Prompt 8 (A/B Test) in Claude Code, then check the colours in normal and incognito windows
+9. Watch the experiment results in PostHog
+
+
+=====================================================================
+Prompt 6 – PostHog Events
+=====================================================================
+
+Prompt 6 – PostHog Events
+
+About
+Connect TripTally to PostHog and capture events so user activity
+can be seen in PostHog. Use the PostHog key and host already in
+.env.local. Do not change anything else.
+
+Step 1 – Connect
+Connect the app to PostHog using the key and host from .env.local.
+The key and host must be readable in the browser. If their names
+do not start with NEXT_PUBLIC_, stop and tell me the names needed.
+Do not rename them yourself.
+
+Step 2 – Create events
+Create these 4 PostHog events in the code,
+with these event properties:
+- trip_created: Continue clicked on / and the trip is saved
+  - trip_id
+  - trip_type ("Only Friends" or "With Friends & Families", as selected)
+  - friends_count (number of friends entered)
+- evaluate_clicked: Evaluate clicked on /upload
+  - trip_id
+  - file_uploaded (true or false)
+  - lines_count (non-empty lines in the uploaded file, 0 if none)
+- approve_notify_clicked: Approve & notify clicked on /dashboard
+  - trip_id
+  - friends_count (number of friends in the split)
+  - total_amount (total spent, in rupees)
+  - share_amount (share each, in rupees)
+  - settlements_count (number of payments in the split)
+- settlement_created: one event for each payment, sent after the
+  settlements are saved in Supabase on Approve & notify
+  (e.g. 3 payments = 3 events)
+  - trip_id
+  - amount (amount of this payment, in rupees)
+No names or emails in any event.
+
+Step 3 – Build and push
+Run the build, commit, and push to main.
+
+Summary
+Give only this table, no icons:
+Step | Result | Status
+PostHog connected
+Events added to code
+Build
+Pushed to main
+
+
+Check after deploy
+On https://triptally-pi.vercel.app, go through the flow once using
+GMAIL_USER as every friend's email, and click Evaluate once on
+/upload. Then open PostHog Activity.
+The 4 events should be there. Open one of each and check its
+properties are filled in.
+
+
+PostHog Setup – Funnel (after events appear)
+--------------------------------------------
+1. Product analytics -> New insight -> Funnel
+2. Steps in order: trip_created -> evaluate_clicked -> approve_notify_clicked
+3. Save as "TripTally flow"
+
+
+=====================================================================
+PostHog Setup – Feature Flag (before Prompt 7)
+=====================================================================
+1. Feature flags -> New flag
+2. Key: approve-notify
+3. Release to 100% of users and save
+
+
+=====================================================================
+Prompt 7 – Feature Flag
+=====================================================================
+
+Prompt 7 – Feature Flag
+
+About
+Control the Approve & notify button with a PostHog feature flag.
+PostHog is already connected (Prompt 6). Do not change anything else.
+
+Step 1 – Feature flag
+On /dashboard, show the Approve & notify button only when the
+PostHog feature flag approve-notify is on. When it is off, hide it.
+Keep the button hidden until the flag value has loaded.
+
+Step 2 – Build and push
+Run the build, commit, and push to main.
+
+Summary
+Give only this table, no icons:
+Step | Result | Status
+Feature flag added to code
+Build
+Pushed to main
+
+
+Check after deploy
+1. Flag on: open /dashboard on the live site. The button shows.
+2. Turn the flag off in PostHog and refresh. The button is hidden.
+   (If it still shows, wait a few seconds and refresh again.)
+3. Turn the flag back on.
+
+
+=====================================================================
+PostHog Setup – Experiment (before Prompt 8)
+=====================================================================
+1. Experiments -> New experiment
+2. Feature flag key: approve-notify-color
+3. Variants: control (dark green, current) and test (dark blue #1D4ED8)
+4. Split: 50 / 50
+5. Goal metric: event approve_notify_clicked
+6. Save and launch
+
+
+=====================================================================
+Prompt 8 – A/B Test
+=====================================================================
+
+Prompt 8 – A/B Test
+
+About
+Run an A/B test on the colour of the Approve & notify button using
+a PostHog experiment. PostHog is already connected (Prompt 6) and
+the button is controlled by the approve-notify flag (Prompt 7).
+Do not change anything else.
+
+Step 1 – A/B test
+On /dashboard, read the PostHog experiment flag approve-notify-color.
+- control: keep the current dark green button colour
+- test: use dark blue (#1D4ED8) for the button
+Keep the button hidden until the flag values have loaded.
+The approve-notify flag still decides whether the button is shown.
+
+Step 2 – Build and push
+Run the build, commit, and push to main.
+
+Summary
+Give only this table, no icons:
+Step | Result | Status
+A/B test added to code
+Build
+Pushed to main
+
+
+Check after deploy
+Open /dashboard in a normal window and an incognito window.
+Each counts as a new user, so the colours may differ.
+Keep both flags on: approve-notify (show or hide) and
+approve-notify-color (colour).
