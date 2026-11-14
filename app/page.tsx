@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ButtonWithInfo, Label, Page, inputClass } from "./components/ui";
+import { ButtonWithInfo, ErrorText, Label, Page, inputClass } from "./components/ui";
+import { TRIP_TYPES, isValidEmail, writeSession, type TripType } from "@/lib/trip";
 
-const TRIP_TYPES = ["Only Friends", "With Friends & Families"] as const;
-type TripType = (typeof TRIP_TYPES)[number];
 type Friend = { name: string; email: string };
 
 export default function TripSetupPage() {
@@ -18,8 +17,35 @@ export default function TripSetupPage() {
     { name: "", email: "" },
   ]);
 
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const updateFriend = (index: number, field: keyof Friend, value: string) =>
     setFriends((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const onContinue = async () => {
+    const complete = tripName.trim() && friends.every((f) => f.name.trim() && isValidEmail(f.email));
+    if (!complete) {
+      setError("Please fill in every field with a valid email.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: tripName.trim(), tripType, friends }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not save the trip.");
+      writeSession({ tripId: data.tripId, trip: { name: tripName.trim(), tripType } });
+      router.push("/upload");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the trip.");
+      setSaving(false);
+    }
+  };
 
   return (
     <Page>
@@ -105,9 +131,12 @@ export default function TripSetupPage() {
           </Label>
         </div>
 
-        <ButtonWithInfo info="Go to the next step to upload your spend details." onClick={() => router.push("/upload")}>
-          Continue
-        </ButtonWithInfo>
+        <div className="flex flex-col gap-2">
+          <ButtonWithInfo info="Go to the next step to upload your spend details." onClick={onContinue} disabled={saving}>
+            Continue
+          </ButtonWithInfo>
+          {error && <ErrorText>{error}</ErrorText>}
+        </div>
       </div>
     </Page>
   );

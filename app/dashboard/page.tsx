@@ -1,13 +1,10 @@
-import { ButtonWithInfo, Info, Page } from "../components/ui";
+"use client";
 
-// Static sample data from design.md (replaced by the real split in a later step).
-const summary = { totalCost: "₹2,000", people: "4", shareEach: "₹500" };
-const payments = [
-  { payer: "Neha", payee: "Rajan", amount: "₹500" },
-  { payer: "Amit", payee: "Rajan", amount: "₹200" },
-  { payer: "Amit", payee: "Priya", amount: "₹100" },
-];
-const totalSettled = "₹800";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ButtonWithInfo, ErrorText, Info, Page } from "../components/ui";
+import { formatRupees, tripTypeLabel } from "@/lib/split";
+import { readSession, type TripSession } from "@/lib/trip";
 
 function SectionTitle({ children, info }: { children: string; info: string }) {
   return (
@@ -22,10 +19,44 @@ const card = "w-full overflow-hidden rounded-[12px] border border-line bg-white 
 const headCell = "px-4 text-[13px] leading-[1.5] font-semibold uppercase text-muted";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<TripSession | null>(null);
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const saved = readSession();
+    if (!saved?.split || !saved.trip) router.replace("/upload");
+    else setSession(saved);
+  }, [router]);
+
+  if (!session?.split || !session.trip) return null;
+  const { trip, split } = session;
+
+  const approve = async () => {
+    setState("sending");
+    setError("");
+    try {
+      const res = await fetch("/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: session.tripId, split }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not send the notification.");
+      setState("sent");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send the notification.");
+      setState("idle");
+    }
+  };
+
   return (
     <Page gap="gap-6">
       <header className="flex w-full flex-col gap-3">
-        <h1 className="text-[24px] leading-[1.5] font-semibold text-ink">Goa Trip · Friends</h1>
+        <h1 className="text-[24px] leading-[1.5] font-semibold text-ink">
+          {trip.name} · {tripTypeLabel(trip.tripType)}
+        </h1>
         <div className="h-px w-full bg-divider" />
       </header>
 
@@ -40,7 +71,7 @@ export default function DashboardPage() {
           ))}
         </div>
         <div className="grid h-16 grid-cols-3">
-          {[summary.totalCost, summary.people, summary.shareEach].map((value, i) => (
+          {[formatRupees(split.total), String(split.people), formatRupees(split.shareEach)].map((value, i) => (
             <div
               key={i}
               className={`flex items-center justify-center text-center text-[22px] leading-[1.5] font-semibold text-ink tabular-nums ${i < 2 ? "border-r border-line" : ""}`}
@@ -69,28 +100,39 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="text-[15px] leading-[1.5] text-ink">
-              {payments.map((p, i) => (
+              {split.payments.map((p, i) => (
                 <tr key={i} className={`h-[52px] border-b border-line-soft ${i % 2 === 1 ? "bg-stripe" : "bg-white"}`}>
                   <td className="px-4">{p.payer}</td>
                   <td className="px-4">{p.payee}</td>
-                  <td className="px-4 text-right tabular-nums">{p.amount}</td>
+                  <td className="px-4 text-right tabular-nums">{formatRupees(p.amount)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="h-[52px] border-t-2 border-line bg-total text-[15px] leading-[1.5] font-bold text-ink">
                 <td colSpan={2} className="px-4">Total settled</td>
-                <td className="px-4 text-right tabular-nums">{totalSettled}</td>
+                <td className="px-4 text-right tabular-nums">{formatRupees(split.totalSettled)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </section>
 
-      <div className="flex w-full justify-end">
-        <ButtonWithInfo className="border-0" info="Approve this split, save it, and email each friend what they owe and to whom.">
+      <div className="flex w-full flex-col items-end gap-2">
+        <ButtonWithInfo
+          className="border-0"
+          info="Approve this split, save it, and email each friend what they owe and to whom."
+          onClick={approve}
+          disabled={state !== "idle"}
+        >
           Approve &amp; notify
         </ButtonWithInfo>
+        {state === "sent" && (
+          <p role="status" className="text-[13px] leading-[1.5] font-medium text-accent">
+            Notification sent
+          </p>
+        )}
+        {error && <ErrorText>{error}</ErrorText>}
       </div>
     </Page>
   );

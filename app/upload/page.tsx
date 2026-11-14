@@ -2,7 +2,11 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ButtonWithInfo, Label, Page } from "../components/ui";
+import { ButtonWithInfo, ErrorText, Label, Page } from "../components/ui";
+import type { WrongLine } from "@/lib/split";
+import { readSession, writeSession } from "@/lib/trip";
+
+type Status = "idle" | "analyzing" | "ready" | "wrong" | "error";
 
 const isTxt = (file: File) => file.name.toLowerCase().endsWith(".txt");
 
@@ -10,9 +14,64 @@ export default function UploadPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [error, setError] = useState("");
+  const [wrong, setWrong] = useState<WrongLine[]>([]);
+
+  const analyse = async (picked: File) => {
+    setFile(picked);
+    setStatus("analyzing");
+    setError("");
+    setWrong([]);
+
+    const session = readSession();
+    if (!session?.tripId) {
+      setStatus("error");
+      setError("Trip not found. Start again from trip setup.");
+      return;
+    }
+
+    let text: string;
+    try {
+      text = await picked.text();
+    } catch {
+      setStatus("error");
+      setError("The file could not be read.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: session.tripId, text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "The file could not be read.");
+
+      if (data.wrong) {
+        setWrong(data.wrong);
+        setStatus("wrong");
+        writeSession({ tripId: session.tripId, trip: data.trip });
+        return;
+      }
+      writeSession({ tripId: session.tripId, trip: data.trip, split: data.split });
+      setStatus("ready");
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "The file could not be read.");
+    }
+  };
 
   const pick = (picked: File | undefined) => {
-    if (picked && isTxt(picked)) setFile(picked);
+    if (!picked) return;
+    if (!isTxt(picked)) {
+      setFile(null);
+      setStatus("error");
+      setError("Please choose a .txt file.");
+      return;
+    }
+    analyse(picked);
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -22,6 +81,9 @@ export default function UploadPage() {
 
   const removeFile = () => {
     setFile(null);
+    setStatus("idle");
+    setError("");
+    setWrong([]);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -60,12 +122,27 @@ export default function UploadPage() {
           <div className="flex w-full items-center gap-3 rounded-[8px] border border-line bg-white p-4">
             <div className="flex min-w-0 flex-1 flex-col gap-[2px] leading-[1.5]">
               <p className="truncate text-[13px] font-semibold text-ink">{file.name}</p>
-              <p className="text-[11px] text-muted">Selected file</p>
+              <p className="text-[11px] text-muted">{status === "analyzing" ? "Analyzing…" : "Selected file"}</p>
             </div>
             <button type="button" aria-label="Remove file" className="shrink-0 cursor-pointer" onClick={removeFile}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/x.svg" alt="" width={16} height={16} />
             </button>
+          </div>
+        )}
+
+        {error && <ErrorText>{error}</ErrorText>}
+
+        {wrong.length > 0 && (
+          <div role="alert" className="flex w-full flex-col gap-1 text-[13px] leading-[1.5] text-[#b91c1c]">
+            <p className="font-semibold">Fix these lines and upload the file again:</p>
+            <ul className="flex flex-col gap-1">
+              {wrong.map((w, i) => (
+                <li key={i}>
+                  “{w.line}” – {w.reason}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
@@ -80,7 +157,11 @@ export default function UploadPage() {
         <ButtonWithInfo variant="secondary" info="Runs the AI on test data in Braintrust to check its accuracy.">
           Evaluate
         </ButtonWithInfo>
-        <ButtonWithInfo info="Go to your trip summary and see who pays whom." onClick={() => router.push("/dashboard")}>
+        <ButtonWithInfo
+          info="Go to your trip summary and see who pays whom."
+          disabled={status !== "ready"}
+          onClick={() => router.push("/dashboard")}
+        >
           Next
         </ButtonWithInfo>
       </div>

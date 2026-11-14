@@ -52,7 +52,7 @@ export function Button({ variant = "primary", className = "", ...props }: Button
   return (
     <button
       type="button"
-      className={`flex h-[46px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border px-5 text-[14px] leading-[1.5] font-semibold whitespace-nowrap ${look} ${className}`}
+      className={`flex h-[46px] shrink-0 cursor-pointer items-center disabled:cursor-not-allowed disabled:opacity-50 justify-center rounded-[8px] border px-5 text-[14px] leading-[1.5] font-semibold whitespace-nowrap ${look} ${className}`}
       {...props}
     />
   );
@@ -66,6 +66,11 @@ export function ButtonWithInfo({ info, ...props }: ButtonProps & { info: string 
       <Info text={info} />
     </div>
   );
+}
+
+/** Short error message under an action. */
+export function ErrorText({ children }: { children: ReactNode }) {
+  return <p role="alert" className="text-[13px] leading-[1.5] text-[#b91c1c]">{children}</p>;
 }
 
 export const inputClass =
