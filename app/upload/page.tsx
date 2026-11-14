@@ -154,7 +154,13 @@ export default function UploadPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <ButtonWithInfo variant="secondary" info="Runs the AI on test data in Braintrust to check its accuracy.">
+        <ButtonWithInfo
+          variant="secondary"
+          info="Runs the AI on test data in Braintrust to check its accuracy."
+          onClick={() => {
+            fetch("/api/evaluate", { method: "POST" }).catch(() => {});
+          }}
+        >
           Evaluate
         </ButtonWithInfo>
         <ButtonWithInfo
