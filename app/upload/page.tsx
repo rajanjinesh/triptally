@@ -1,0 +1,89 @@
+"use client";
+
+import { useRef, useState, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
+import { ButtonWithInfo, Label, Page } from "../components/ui";
+
+const isTxt = (file: File) => file.name.toLowerCase().endsWith(".txt");
+
+export default function UploadPage() {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+
+  const pick = (picked: File | undefined) => {
+    if (picked && isTxt(picked)) setFile(picked);
+  };
+
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    pick(e.dataTransfer.files[0]);
+  };
+
+  const removeFile = () => {
+    setFile(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <Page>
+      <h1 className="w-full text-[24px] leading-[1.2] font-semibold text-ink">Upload spend details</h1>
+
+      <div className="flex w-full flex-col gap-4">
+        <Label info="Upload a .txt file listing who paid what during the trip." className="text-[14px] font-semibold">
+          Upload file
+        </Label>
+
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          className="flex h-[220px] w-full flex-col items-center justify-center gap-[10px] rounded-[8px] border border-dashed border-line bg-header leading-[1.5] whitespace-nowrap"
+        >
+          <p className="text-[16px] font-medium text-ink">Drop your spend details file here</p>
+          <p className="flex gap-1 text-[13px]">
+            <span className="text-muted">or</span>
+            <button type="button" className="cursor-pointer font-semibold text-accent" onClick={() => inputRef.current?.click()}>
+              browse files
+            </button>
+          </p>
+          <p className="text-[11px] text-muted">.txt files only</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".txt,text/plain"
+            className="hidden"
+            onChange={(e) => pick(e.target.files?.[0])}
+          />
+        </div>
+
+        {file && (
+          <div className="flex w-full items-center gap-3 rounded-[8px] border border-line bg-white p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-[2px] leading-[1.5]">
+              <p className="truncate text-[13px] font-semibold text-ink">{file.name}</p>
+              <p className="text-[11px] text-muted">Selected file</p>
+            </div>
+            <button type="button" aria-label="Remove file" className="shrink-0 cursor-pointer" onClick={removeFile}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/x.svg" alt="" width={16} height={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex w-full items-center gap-2 rounded-[8px] bg-note px-3 py-[10px]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icons/info.svg" alt="" width={16} height={16} className="shrink-0" />
+        <p className="flex-1 text-[13px] leading-[1.5] text-note-ink">This evaluation is run with test data.</p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <ButtonWithInfo variant="secondary" info="Runs the AI on test data in Braintrust to check its accuracy.">
+          Evaluate
+        </ButtonWithInfo>
+        <ButtonWithInfo info="Go to your trip summary and see who pays whom." onClick={() => router.push("/dashboard")}>
+          Next
+        </ButtonWithInfo>
+      </div>
+    </Page>
+  );
+}

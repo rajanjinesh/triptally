@@ -1,103 +1,114 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ButtonWithInfo, Label, Page, inputClass } from "./components/ui";
+
+const TRIP_TYPES = ["Only Friends", "With Friends & Families"] as const;
+type TripType = (typeof TRIP_TYPES)[number];
+type Friend = { name: string; email: string };
+
+export default function TripSetupPage() {
+  const router = useRouter();
+  const [tripName, setTripName] = useState("");
+  const [tripType, setTripType] = useState<TripType>("Only Friends");
+  const [friends, setFriends] = useState<Friend[]>([
+    { name: "", email: "" },
+    { name: "", email: "" },
+    { name: "", email: "" },
+  ]);
+
+  const updateFriend = (index: number, field: keyof Friend, value: string) =>
+    setFriends((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <Page>
+      <h1 className="w-full text-[24px] leading-[1.2] font-semibold text-ink">TripTally</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="flex w-full flex-col gap-6">
+        {/* Trip name */}
+        <div className="flex w-full flex-col gap-2">
+          <Label info="Give your trip a name so you can recognise it later.">
+            <label htmlFor="trip-name">Trip name</label>
+          </Label>
+          <input
+            id="trip-name"
+            className={inputClass}
+            placeholder="e.g. Goa Trip"
+            value={tripName}
+            onChange={(e) => setTripName(e.target.value)}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {/* Trip type */}
+        <div className="flex w-full flex-col gap-2">
+          <Label info="Choose who is on this trip. This helps label your trip summary.">Trip type</Label>
+          <div role="radiogroup" aria-label="Trip type" className="flex h-12 w-full items-center gap-8 text-[14px] leading-[1.5]">
+            {TRIP_TYPES.map((type) => {
+              const selected = tripType === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setTripType(type)}
+                  className={`flex cursor-pointer items-center gap-2 whitespace-nowrap ${selected ? "text-accent" : "text-ink"}`}
+                >
+                  <span aria-hidden className="flex size-[11px] items-center justify-center rounded-full border-[1.5px] border-current">
+                    {selected && <span className="size-[5px] rounded-full bg-current" />}
+                  </span>
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Friends on this trip */}
+        <div className="flex w-full flex-col gap-2">
+          <Label info="Enter the name and email of each friend on this trip. They'll get the settlement by email.">
+            Friends on this trip
+          </Label>
+          <div className="flex w-full flex-col gap-3">
+            {friends.map((friend, i) => (
+              <div key={i} className="flex w-full gap-3">
+                <input
+                  aria-label={`Friend ${i + 1} name`}
+                  className={inputClass}
+                  placeholder={`Friend ${i + 1} name`}
+                  value={friend.name}
+                  onChange={(e) => updateFriend(i, "name", e.target.value)}
+                />
+                <input
+                  type="email"
+                  aria-label={`Friend ${i + 1} email`}
+                  className={inputClass}
+                  placeholder={`friend${i + 1}@email.com`}
+                  value={friend.email}
+                  onChange={(e) => updateFriend(i, "email", e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+          <Label
+            info="Add another friend who was on this trip."
+            className="text-[14px] font-medium"
+          >
+            <button
+              type="button"
+              className="cursor-pointer text-accent"
+              onClick={() => setFriends((rows) => [...rows, { name: "", email: "" }])}
+            >
+              + Add friend
+            </button>
+          </Label>
+        </div>
+
+        <ButtonWithInfo info="Go to the next step to upload your spend details." onClick={() => router.push("/upload")}>
+          Continue
+        </ButtonWithInfo>
+      </div>
+    </Page>
   );
 }
