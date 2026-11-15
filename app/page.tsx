@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ButtonWithInfo, ErrorText, Label, Page, inputClass } from "./components/ui";
 import { TRIP_TYPES, isValidEmail, writeSession, type TripType } from "@/lib/trip";
+import { track } from "@/lib/analytics";
 
 type Friend = { name: string; email: string };
 
@@ -40,6 +41,7 @@ export default function TripSetupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not save the trip.");
       writeSession({ tripId: data.tripId, trip: { name: tripName.trim(), tripType } });
+      track("trip_created", { trip_id: data.tripId, trip_type: tripType, friends_count: friends.length });
       router.push("/upload");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the trip.");

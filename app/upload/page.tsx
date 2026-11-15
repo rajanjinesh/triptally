@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ButtonWithInfo, ErrorText, Label, Page } from "../components/ui";
 import type { WrongLine } from "@/lib/split";
 import { readSession, writeSession } from "@/lib/trip";
+import { countLines, track } from "@/lib/analytics";
 
 type Status = "idle" | "analyzing" | "ready" | "wrong" | "error";
 
@@ -159,6 +160,11 @@ export default function UploadPage() {
           info="Runs the AI on test data in Braintrust to check its accuracy."
           onClick={() => {
             fetch("/api/evaluate", { method: "POST" }).catch(() => {});
+            const tripId = readSession()?.tripId ?? null;
+            const send = (lines_count: number) =>
+              track("evaluate_clicked", { trip_id: tripId, file_uploaded: !!file, lines_count });
+            if (file) file.text().then((text) => send(countLines(text)), () => send(0));
+            else send(0);
           }}
         >
           Evaluate

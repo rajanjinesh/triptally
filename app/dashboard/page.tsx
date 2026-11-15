@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ButtonWithInfo, ErrorText, Info, Page } from "../components/ui";
 import { formatRupees, tripTypeLabel } from "@/lib/split";
 import { readSession, type TripSession } from "@/lib/trip";
+import { track } from "@/lib/analytics";
 
 function SectionTitle({ children, info }: { children: string; info: string }) {
   return (
@@ -36,6 +37,13 @@ export default function DashboardPage() {
   const approve = async () => {
     setState("sending");
     setError("");
+    track("approve_notify_clicked", {
+      trip_id: session.tripId,
+      friends_count: split.people,
+      total_amount: split.total,
+      share_amount: split.shareEach,
+      settlements_count: split.payments.length,
+    });
     try {
       const res = await fetch("/api/approve", {
         method: "POST",
@@ -43,6 +51,9 @@ export default function DashboardPage() {
         body: JSON.stringify({ tripId: session.tripId, split }),
       });
       const data = await res.json();
+      if (data.saved) {
+        for (const p of split.payments) track("settlement_created", { trip_id: session.tripId, amount: p.amount });
+      }
       if (!res.ok) throw new Error(data.error ?? "Could not send the notification.");
       setState("sent");
     } catch (err) {

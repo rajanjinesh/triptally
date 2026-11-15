@@ -76,8 +76,8 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: `Split saved, but the emails could not be sent: ${message}` }, { status: 502 });
+    return NextResponse.json({ error: `Split saved, but the emails could not be sent: ${message}`, saved: true }, { status: 502 });
   }
 
-  return NextResponse.json({ sent: friends.length });
+  return NextResponse.json({ sent: friends.length, saved: true });
 }
