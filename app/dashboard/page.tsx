@@ -33,9 +33,15 @@ export default function DashboardPage() {
   }, [router]);
 
   // Show Approve & notify only once the approve-notify flag has loaded and is on.
+  // The approve-notify-color experiment variant is read only after flags load; "test" makes the button dark blue.
   const [approveEnabled, setApproveEnabled] = useState(false);
+  const [colorVariant, setColorVariant] = useState<string | boolean | undefined>(undefined);
   useEffect(
-    () => posthog.onFeatureFlags(() => setApproveEnabled(posthog.isFeatureEnabled("approve-notify") === true)),
+    () =>
+      posthog.onFeatureFlags(() => {
+        setApproveEnabled(posthog.isFeatureEnabled("approve-notify") === true);
+        setColorVariant(posthog.getFeatureFlag("approve-notify-color"));
+      }),
     [],
   );
 
@@ -141,6 +147,7 @@ export default function DashboardPage() {
         {approveEnabled && (
           <ButtonWithInfo
             className="border-0"
+            style={colorVariant === "test" ? { backgroundColor: "#1D4ED8" } : undefined}
             info="Approve this split, save it, and email each friend what they owe and to whom."
             onClick={approve}
             disabled={state !== "idle"}
