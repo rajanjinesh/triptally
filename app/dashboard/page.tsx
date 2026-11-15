@@ -6,6 +6,7 @@ import { ButtonWithInfo, ErrorText, Info, Page } from "../components/ui";
 import { formatRupees, tripTypeLabel } from "@/lib/split";
 import { readSession, type TripSession } from "@/lib/trip";
 import { track } from "@/lib/analytics";
+import posthog from "posthog-js";
 
 function SectionTitle({ children, info }: { children: string; info: string }) {
   return (
@@ -30,6 +31,13 @@ export default function DashboardPage() {
     if (!saved?.split || !saved.trip) router.replace("/upload");
     else setSession(saved);
   }, [router]);
+
+  // Show Approve & notify only once the approve-notify flag has loaded and is on.
+  const [approveEnabled, setApproveEnabled] = useState(false);
+  useEffect(
+    () => posthog.onFeatureFlags(() => setApproveEnabled(posthog.isFeatureEnabled("approve-notify") === true)),
+    [],
+  );
 
   if (!session?.split || !session.trip) return null;
   const { trip, split } = session;
@@ -130,14 +138,16 @@ export default function DashboardPage() {
       </section>
 
       <div className="flex w-full flex-col items-end gap-2">
-        <ButtonWithInfo
-          className="border-0"
-          info="Approve this split, save it, and email each friend what they owe and to whom."
-          onClick={approve}
-          disabled={state !== "idle"}
-        >
-          Approve &amp; notify
-        </ButtonWithInfo>
+        {approveEnabled && (
+          <ButtonWithInfo
+            className="border-0"
+            info="Approve this split, save it, and email each friend what they owe and to whom."
+            onClick={approve}
+            disabled={state !== "idle"}
+          >
+            Approve &amp; notify
+          </ButtonWithInfo>
+        )}
         {state === "sent" && (
           <p role="status" className="text-[13px] leading-[1.5] font-medium text-accent">
             Notification sent
