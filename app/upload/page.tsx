@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ButtonWithInfo, ErrorText, Label, Page } from "../components/ui";
 import type { WrongLine } from "@/lib/split";
 import { readSession, writeSession } from "@/lib/trip";
-import { countLines, track } from "@/lib/analytics";
+import { countLines, track, trackAiCalls } from "@/lib/analytics";
 
 type Status = "idle" | "analyzing" | "ready" | "wrong" | "error";
 
@@ -41,6 +41,8 @@ export default function UploadPage() {
       return;
     }
 
+    const started = performance.now();
+    let aiCalls: unknown;
     try {
       const res = await fetch("/api/analyse", {
         method: "POST",
@@ -48,6 +50,7 @@ export default function UploadPage() {
         body: JSON.stringify({ tripId: session.tripId, text }),
       });
       const data = await res.json();
+      aiCalls = data.aiCalls;
       if (!res.ok) throw new Error(data.error ?? "The file could not be read.");
 
       if (data.wrong) {
@@ -61,6 +64,8 @@ export default function UploadPage() {
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "The file could not be read.");
+    } finally {
+      trackAiCalls(aiCalls, session.tripId, countLines(text), Math.round(performance.now() - started));
     }
   };
 

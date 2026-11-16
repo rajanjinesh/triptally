@@ -24,7 +24,7 @@ export async function runEval(): Promise<EvalSummary> {
     data: initDataset(PROJECT_NAME, { dataset: DATASET_NAME }),
     // Each row's input is a list of spends with only one line; keep the one line returned.
     task: async (input) => {
-      const [line] = await analyseSpends(input);
+      const [line] = (await analyseSpends(input)).lines;
       return line ?? "";
     },
     scores: [initFunction({ projectName: PROJECT_NAME, slug: SCORER_NAME })],

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyseSpends, spendLines } from "@/lib/analyseSpends";
+import { analyseSpends, AnalyseSpendsError, spendLines, type AiCall } from "@/lib/analyseSpends";
 import { calculateSplit, checkLines } from "@/lib/split";
 import { supabase } from "@/lib/supabase";
 
@@ -25,17 +25,19 @@ export async function POST(request: Request) {
   }
 
   let rewritten: string[];
+  let aiCalls: AiCall[];
   try {
-    rewritten = await analyseSpends(text);
+    ({ lines: rewritten, calls: aiCalls } = await analyseSpends(text));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: `Could not read the spend details: ${message}` }, { status: 502 });
+    const calls = err instanceof AnalyseSpendsError ? err.calls : [];
+    return NextResponse.json({ error: `Could not read the spend details: ${message}`, aiCalls: calls }, { status: 502 });
   }
 
   const friendNames = friends.map((f) => f.name as string);
   const { spends, wrong } = checkLines(spendLines(text), rewritten, friendNames);
   const tripInfo = { name: trip.name as string, tripType: trip.trip_type as string };
 
-  if (wrong.length > 0) return NextResponse.json({ trip: tripInfo, wrong });
-  return NextResponse.json({ trip: tripInfo, split: calculateSplit(spends, friendNames) });
+  if (wrong.length > 0) return NextResponse.json({ trip: tripInfo, wrong, aiCalls });
+  return NextResponse.json({ trip: tripInfo, split: calculateSplit(spends, friendNames), aiCalls });
 }
